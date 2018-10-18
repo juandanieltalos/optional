@@ -11,6 +11,7 @@ import org.apache.commons.lang3.StringUtils;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Collection;
+import java.util.Optional;
 import java.util.function.Predicate;
 
 
@@ -21,13 +22,19 @@ public class MainImpl implements Main
 	public String getLine1(AddressModel addressModel)
 	{
 		String result = StringUtils.EMPTY;
-		if (addressModel != null)
-		{
-			if (StringUtils.isNotBlank(addressModel.getLine1()))
-			{
-				result = addressModel.getLine1();
-			}
-		}
+		//		if (addressModel != null)
+		//		{
+		//			if (StringUtils.isNotBlank(addressModel.getLine1()))
+		//			{
+		//				result = addressModel.getLine1();
+		//			}
+		//		}
+
+
+		result = Optional.ofNullable(addressModel)
+				.map(AddressModel::getLine1)
+				.filter(StringUtils::isNotBlank)
+				.orElse("");
 		return result;
 	}
 
@@ -35,21 +42,39 @@ public class MainImpl implements Main
 	public String getFullName(AddressModel addressModel)
 	{
 		StringBuilder stringBuilder = new StringBuilder();
-		if (addressModel != null)
-		{
-			if (StringUtils.isNotBlank(addressModel.getFirstName()))
-			{
-				stringBuilder.append(addressModel.getFirstName());
-			}
-			if (StringUtils.isNotBlank(addressModel.getLastName()))
-			{
-				if (stringBuilder.length() != 0)
-				{
-					stringBuilder.append(StringUtils.SPACE);
-				}
-				stringBuilder.append(addressModel.getLastName());
-			}
-		}
+		//		if (addressModel != null)
+		//		{
+		//			if (StringUtils.isNotBlank(addressModel.getFirstName()))
+		//			{
+		//				stringBuilder.append(addressModel.getFirstName());
+		//			}
+		//			if (StringUtils.isNotBlank(addressModel.getLastName()))
+		//			{
+		//				if (stringBuilder.length() != 0)
+		//				{
+		//					stringBuilder.append(StringUtils.SPACE);
+		//				}
+		//				stringBuilder.append(addressModel.getLastName());
+		//			}
+		//		}
+		Optional<AddressModel> nullableOptional = Optional.ofNullable(addressModel);
+
+		nullableOptional
+				.filter(u -> StringUtils.isNotBlank(u.getFirstName()))
+				.ifPresent(u -> stringBuilder.append(u.getFirstName()))
+		;
+		nullableOptional
+				.filter(u -> StringUtils.isNotBlank(u.getLastName()))
+				.ifPresent(u -> {
+					if (stringBuilder.length() != 0)
+					{
+						stringBuilder.append(StringUtils.SPACE);
+					}
+					stringBuilder.append(u.getLastName());
+				});
+
+
+
 		return stringBuilder.toString();
 	}
 
@@ -57,13 +82,21 @@ public class MainImpl implements Main
 	public AddressModel getBillingAddress(UserModel userModel)
 	{
 		AddressModel result = null;
-		if (userModel != null)
-		{
-			if (CollectionUtils.isNotEmpty(userModel.getAddresses()))
-			{
-				result = getAddress(userModel.getAddresses(), a -> BooleanUtils.isTrue(a.getBillingAddress()));
-			}
-		}
+//		if (userModel != null)
+//		{
+//			if (CollectionUtils.isNotEmpty(userModel.getAddresses()))
+//			{
+//				result = getAddress(userModel.getAddresses(), a -> BooleanUtils.isTrue(a.getBillingAddress()));
+//			}
+//		}
+
+		Optional<UserModel> nullableOptional = Optional.ofNullable(userModel);
+
+		result = nullableOptional.map(UserModel::getAddresses)
+				.filter(CollectionUtils::isNotEmpty)
+				.map(ad -> getAddress(nullableOptional.get().getAddresses(), a -> BooleanUtils.isTrue(a.getBillingAddress())))
+				.orElse(null);
+
 		return result;
 	}
 
@@ -72,10 +105,13 @@ public class MainImpl implements Main
 	{
 		DateFormat format = new SimpleDateFormat("MM/dd/yyyy");
 		String result = "the user has not been logged yet";
-		if (userModel != null && userModel.getLastLogin() != null)
-		{
-			result = format.format(userModel.getLastLogin());
-		}
+//		if (userModel != null && userModel.getLastLogin() != null)
+//		{
+//			result = format.format(userModel.getLastLogin());
+//		}
+		Optional<UserModel> nullableOptional = Optional.ofNullable(userModel);
+		result = nullableOptional.map(UserModel::getLastLogin).map(format::format).orElse("the user has not been logged yet");
+
 		return result;
 	}
 
@@ -83,21 +119,37 @@ public class MainImpl implements Main
 	public String getContactCountry(UserModel userModel)
 	{
 		String contactAddressIsoCode = null;
-		if (userModel != null)
-		{
-			if (CollectionUtils.isNotEmpty(userModel.getAddresses()))
-			{
-				AddressModel contactAddress = getAddress(userModel.getAddresses(), a -> BooleanUtils.isTrue(a.getContactAddress()));
-				if (contactAddress != null && contactAddress.getCountry() != null)
-				{
-					contactAddressIsoCode = contactAddress.getCountry().getIsocode();
-				}
-			}
-		}
-		if (contactAddressIsoCode == null)
-		{
-			contactAddressIsoCode = inferCountry();
-		}
+//		if (userModel != null)
+//		{
+//			if (CollectionUtils.isNotEmpty(userModel.getAddresses()))
+//			{
+//				AddressModel contactAddress = getAddress(userModel.getAddresses(), a -> BooleanUtils.isTrue(a.getContactAddress()));
+//				if (contactAddress != null && contactAddress.getCountry() != null)
+//				{
+//					contactAddressIsoCode = contactAddress.getCountry().getIsocode();
+//				}
+//			}
+//		}
+
+		Optional<UserModel> userOptional = Optional.ofNullable(userModel);
+
+		AddressModel contactAddress = userOptional.map(UserModel::getAddresses)
+				.filter(CollectionUtils::isNotEmpty)
+				.map(ad -> getAddress(ad, a -> BooleanUtils.isTrue(a.getContactAddress())))
+				.orElse(null)
+				;
+
+		Optional<AddressModel> contactOptional = Optional.ofNullable(contactAddress);
+
+		contactAddressIsoCode = contactOptional.map(AddressModel::getCountry).map(c -> contactOptional.get().getCountry().getIsocode()).orElseGet(() -> inferCountry());
+
+//		Optional<String> contactAddressIsoCodeOptional = Optional.ofNullable(contactAddressIsoCode);
+//		contactAddressIsoCode = contactAddressIsoCodeOptional.orElse(inferCountry());
+
+//		if (contactAddressIsoCode == null)
+//		{
+//			contactAddressIsoCode = inferCountry();
+//		}
 		return contactAddressIsoCode;
 	}
 
@@ -105,13 +157,22 @@ public class MainImpl implements Main
 	public AddressModel getShippingAddress(UserModel userModel) throws AddressNotFoundException
 	{
 		AddressModel addressModel = null;
-		if (CollectionUtils.isNotEmpty(userModel.getAddresses()))
-		{
-			addressModel = getAddress(userModel.getAddresses(), a -> BooleanUtils.isTrue(a.getShippingAddress()));
-		}
-		if(addressModel == null){
-			throw new AddressNotFoundException();
-		}
+//		if (CollectionUtils.isNotEmpty(userModel.getAddresses()))
+//		{
+//			addressModel = getAddress(userModel.getAddresses(), a -> BooleanUtils.isTrue(a.getShippingAddress()));
+//		}
+//		if (addressModel == null)
+//		{
+//			throw new AddressNotFoundException();
+//		}
+
+		Optional<UserModel> nullableOptional = Optional.ofNullable(userModel);
+
+		addressModel = nullableOptional.map(UserModel::getAddresses)
+				.filter(CollectionUtils::isNotEmpty)
+				.map(ad -> getAddress(ad, a -> BooleanUtils.isTrue(a.getShippingAddress())))
+				.orElseThrow(AddressNotFoundException::new);
+
 		return addressModel;
 	}
 
